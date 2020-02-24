@@ -1,0 +1,22 @@
+HRNet trained with:
+bs=12 (3 x 4 GPUs)
+iterations=120,000
+**epochs=484 epochs
+poly learning rate schedule (1 - iter/max_iter)^0.9
+SGD
+lr_init=0.01
+momentum=0.9
+weight_decay=5e-4
+
+Their blocks are residual, with 48, 48*2, 48*4, 48*8 channels at depths 4, 8, 16, 32 respectively. (total of 720)
+So first 4 blocks 48, next 4 are 48*3=144, next 4 are 48*7=336, next 4 are 48*15=720.
+
+
+I will therefore train with:
+poly learning rate schedule
+Adam with warmup, or RAdam
+lr_init=lrfind-ed
+no weight decay, instead SRIP on 1x1 convs
+model sized such that params in the 10s of millions, and batch size that fits is ~3.
+
+My depthwisecontextconv can be used for residual, or for dense. 
