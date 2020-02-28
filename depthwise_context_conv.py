@@ -39,10 +39,7 @@ class DepthwiseContextConv2D(tf.keras.layers.Conv2D):
             **kwargs,
         )
 
-        ## self.kernel_size = conv_utils.normalize_tuple(kernel_size, 2, 'kernel_size')
-        ## self.strides = conv_utils.normalize_tuple(strides, 2, 'strides')
         self.depth_multiplier = depth_multiplier
-        ## self.activation = keras.activations.get(activation)
         self.max_dr = conv_utils.normalize_tuple(max_learned_dilation_rate, 2, 'max_learned_dilation_rate')
         self.sigma = conv_utils.normalize_tuple(sigma, 2, 'sigma')  # lower sigma is faster but less accurate dilation learning,
         self.pad_mode = pad_mode
