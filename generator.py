@@ -3,24 +3,25 @@ import tensorflow.keras as keras
 import cv2
 import glob
 from tensorflow.keras.utils import to_categorical
-import cityscapes_labels
+import cityscapesScripts.cityscapesscripts.helpers.labels as labels
 
-mapping_id_to_trainId = {label.id : label.trainId if label.trainId != 255 else 19 for label in cityscapes_labels.labels}
+mapping_id_to_trainId = {label.id : label.trainId if label.trainId != 255 else 19 for label in labels.labels}
 
 CITYSCAPES_MEAN = np.array([0.28689554, 0.32513303, 0.28389177])
 CITYSCAPES_STD = np.array([0.18696375, 0.19017339, 0.18720214])
 
 
 class CityScapesGenerator(keras.utils.Sequence):
-    def __init__(self, subset, batch_size=1, crop=(512, 1024), resize=1, augment=True, dir_='.'):
+    def __init__(self, subset, batch_size=1, crop=(512, 1024), resize=1, augment=True, dir_='.', shuffle=True):
         self.batch_size = batch_size
         self.crop = crop
         self.resize = resize
         self.augment = augment
+        self.shuffle = shuffle
 
         assert subset in ('train', 'test', 'val')
-        self.lbls = sorted(glob.glob(dir_ + '/gtFine_trainvaltest/gtFine/{subset}/*/*_labelIds.png'.format(**locals())))
-        self.imgs = sorted(glob.glob(dir_ + '/leftImg8bit_trainvaltest/leftImg8bit/{subset}/*/*_leftImg8bit.png'.format(**locals())))
+        self.lbls = sorted(glob.glob(f'{dir_}/gtFine_trainvaltest/gtFine/{subset}/*/*_labelIds.png'))
+        self.imgs = sorted(glob.glob(f'{dir_}/leftImg8bit_trainvaltest/leftImg8bit/{subset}/*/*_leftImg8bit.png'))
         
         self.on_epoch_end()
         
@@ -70,15 +71,15 @@ class CityScapesGenerator(keras.utils.Sequence):
             hc, wc = self.crop
             hi, wi = lbl.shape[:2]
             if hi >= hc and wi >= wc:
-                y = np.random.randint(0, hi - hc + 1)
-                x = np.random.randint(0, wi - wc + 1)
+                # y = np.random.randint(0, hi - hc + 1)
+                # x = np.random.randint(0, wi - wc + 1)
+                # changed to only pick one of the corners, to not undersample edges too much.
+                y = np.random.choice([0, hi - hc])
+                x = np.random.choice([0, wi - wc])
                 img = img[y:y+hc, x:x+wc]
                 lbl = lbl[y:y+hc, x:x+wc]
             else:
                 raise Exception
-                fd = 8  # force img to be divisible by 8
-                img = img[:hi//fd*fd, :wi//fd*fd]
-                lbl = lbl[:hi//fd*fd, :wi//fd*fd]
         # to trainID
         lbl = np.vectorize(mapping_id_to_trainId.__getitem__)(lbl)
         # to categorical
@@ -86,4 +87,7 @@ class CityScapesGenerator(keras.utils.Sequence):
         return img, lbl
         
     def on_epoch_end(self):
-        self.order = np.arange(len(self.imgs))
+        if self.shuffle:
+            self.order = np.random.permutation(len(self.imgs))
+        else:
+            self.order = np.arange(len(self.imgs))

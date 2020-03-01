@@ -20,3 +20,9 @@ no weight decay, instead SRIP on 1x1 convs
 model sized such that params in the 10s of millions, and batch size that fits is ~3.
 
 My depthwisecontextconv can be used for residual, or for dense. 
+
+
+
+TODO:
+SRIP
+BN-free initialization
