@@ -24,6 +24,7 @@ class DepthwiseContextConv2D(tf.keras.layers.Conv2D):
         sigma=1,
         pad_mode='REFLECT',
         use_bias=True,
+        interp_mode='bilinear',
         depthwise_initializer='he_normal',
         bias_initializer='zeros',
         depthwise_regularizer=None,
@@ -52,11 +53,13 @@ class DepthwiseContextConv2D(tf.keras.layers.Conv2D):
         self.sigma = conv_utils.normalize_tuple(sigma, 2, 'sigma')  # lower sigma is faster but less accurate dilation learning,
         self.pad_mode = pad_mode
         self.use_bias = use_bias
+        self.interp_mode = interp_mode
         self.depthwise_initializer = initializers.get(depthwise_initializer)
         self.depthwise_regularizer = regularizers.get(depthwise_regularizer)
         self.depthwise_constraint = constraints.get(depthwise_constraint)
         self.bias_initializer = initializers.get(bias_initializer)
 
+        assert interp_mode in ('bilinear', 'gaussian')
         assert pad_mode in ('REFLECT', 'CONSTANT', 'SYMMETRIC')
         # These constraints are to not have to deal with padding/cropping/indexing issues.
         assert self.kernel_size[0] % 2 == 1
@@ -152,9 +155,8 @@ class DepthwiseContextConv2D(tf.keras.layers.Conv2D):
         tmp = tf.einsum('ab...,bc...->ac...', left, self.depthwise_kernel)
         return tf.einsum('ab...,bc...->ac...', tmp, right)
     
-    @staticmethod
-    def _calculate_dilation_matrix(xx, yy, d, sigma=1, norm_axis=None):
-        if False:
+    def _calculate_dilation_matrix(self, xx, yy, d, sigma=1, norm_axis=None):
+        if self.interp_mode == 'bilinear':
             # bilinear
             delta_to_pos_1 = yy - (xx-0.5)*d
             delta_to_neg_1 = yy - (xx+0.5)*d
@@ -186,6 +188,7 @@ class FastDepthwiseContextConv2D(tf.keras.layers.Conv2D):
         sigma=1,
         pad_mode='REFLECT',
         use_bias=True,
+        interp_mode='gaussian',
         depthwise_initializer='he_normal',
         bias_initializer='zeros',
         depthwise_regularizer=None,
@@ -214,11 +217,13 @@ class FastDepthwiseContextConv2D(tf.keras.layers.Conv2D):
         self.sigma = conv_utils.normalize_tuple(sigma, 2, 'sigma')  # lower sigma is faster but less accurate dilation learning,
         self.pad_mode = pad_mode
         self.use_bias = use_bias
+        self.interp_mode = interp_mode
         self.depthwise_initializer = initializers.get(depthwise_initializer)
         self.depthwise_regularizer = regularizers.get(depthwise_regularizer)
         self.depthwise_constraint = constraints.get(depthwise_constraint)
         self.bias_initializer = initializers.get(bias_initializer)
 
+        assert interp_mode in ('bilinear', 'gaussian')
         assert pad_mode in ('REFLECT', 'CONSTANT', 'SYMMETRIC')
         # These constraints are to not have to deal with padding/cropping/indexing issues.
         assert self.kernel_size[0] % 2 == 1
@@ -293,7 +298,7 @@ class FastDepthwiseContextConv2D(tf.keras.layers.Conv2D):
         self._xxw = tf.reshape(tf.range(-(kw-1)/2, (kw-1)/2+1), [-1, 1, 1, 1])
         self._yyw = tf.reshape(tf.range(-padw/2, padw/2+1), [1, -1, 1, 1])
         self._strides_for_dwconv = [1, 1, self.strides[0], self.strides[1]]
-        self._padding_for_dwconv = self.padding.upper()
+        self._padding_for_dwconv = self.padding.upper()  # 'VALID'
 
         self.input_spec = InputSpec(ndim=4, axes={channel_axis: input_dim})
         self.built = True
@@ -332,9 +337,8 @@ class FastDepthwiseContextConv2D(tf.keras.layers.Conv2D):
         right = self._calculate_dilation_matrix(self._xxw, self._yyw, self.dilation_rate_w, self.sigma[1], 1)
         return tf.einsum('ab...,bc...->ac...', self.depthwise_kernel_w, right)
     
-    @staticmethod
-    def _calculate_dilation_matrix(xx, yy, d, sigma=1, norm_axis=None):
-        if False:
+    def _calculate_dilation_matrix(self, xx, yy, d, sigma=1, norm_axis=None):
+        if self.interp_mode == 'bilinear':
             # bilinear
             delta_to_pos_1 = yy - (xx-0.5)*d
             delta_to_neg_1 = yy - (xx+0.5)*d
@@ -353,3 +357,5 @@ class FastDepthwiseContextConv2D(tf.keras.layers.Conv2D):
         mat = mat / d
         return mat
     
+
+# for inference, can fine-tune the network into either downsamples + regular convs, or harden the dilation rates and use normal dilated convs, or a combination of both.

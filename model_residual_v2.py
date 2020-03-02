@@ -17,7 +17,7 @@ def create_model(input_shape=(None, None, 3), depths=[1, 2, 4, 8], width=32, dep
             x = Conv2D(width, 1, padding='same')(x)
             x = SyncBatchNormalization()(x)
             x = Activation(activation)(x)
-            x = DepthwiseContextConv2D(depth_multiplier=depth_multiplier, max_learned_dilation_rate=max_dr)(x)
+            x = DepthwiseContextConv2D(depth_multiplier=depth_multiplier, max_learned_dilation_rate=max_dr, interp_mode='bilinear')(x)
             x = SyncBatchNormalization()(x)
             x = Activation(activation)(x)
             x = Conv2D(width, 1, padding='same')(x)
