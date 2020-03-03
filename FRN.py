@@ -34,3 +34,6 @@ class FilterResponseNormalization(keras.layers.Layer):
     def compute_output_shape(self, input_shape):
         assert input_shape and len(input_shape) == 4
         return input_shape
+
+    def get_config(self):
+        return {'activation': keras.activations.serialize(self.activation)}
