@@ -26,3 +26,4 @@ My depthwisecontextconv can be used for residual, or for dense.
 TODO:
 SRIP
 BN-free initialization
+fine-tuned BN parameters
